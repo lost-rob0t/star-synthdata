@@ -1,0 +1,125 @@
+#+TITLE: StarIntel Synthetic Data Generator - Bash Commands
+#+AUTHOR: unseen
+#+DATE: 2026-01-14
+
+* Development Environment
+
+** Enter Development Shell
+#+begin_src bash
+nix develop
+#+end_src
+
+** Build Package
+#+begin_src bash
+nix build
+#+end_src
+
+* Ollama Setup
+
+** Start Ollama Server
+#+begin_src bash
+ollama serve
+#+end_src
+
+** Pull Models
+#+begin_src bash
+# Default model
+ollama pull llama3.2
+
+# Alternative models
+ollama pull mistral
+ollama pull qwen2.5
+#+end_src
+
+** List Available Models
+#+begin_src bash
+ollama list
+#+end_src
+
+* Generate Synthetic Data
+
+** Person Documents
+#+begin_src bash
+# Generate 5 people
+python main.py person -n 5
+
+# Generate 100 people and save
+python main.py person -n 100 > data/people.ndjson
+#+end_src
+
+** Social Media Posts
+#+begin_src bash
+# Generate 10 posts
+python main.py socialmediapost -n 10
+
+# Generate 50 posts with custom dataset
+python main.py socialmediapost -n 50 -d twitter_archive > posts.ndjson
+#+end_src
+
+** Messages
+#+begin_src bash
+# Generate 20 messages
+python main.py message -n 20
+
+# Generate messages with different model
+python main.py message -n 50 -m mistral > messages.ndjson
+#+end_src
+
+* Pipeline Examples
+
+** Generate and Process
+#+begin_src bash
+# Generate and count documents
+python main.py person -n 100 | wc -l
+
+# Generate and pretty print
+python main.py person -n 5 | jq
+
+# Generate and extract specific fields
+python main.py socialmediapost -n 10 | jq '.user'
+
+# Generate multiple types and combine
+{
+  python main.py person -n 50
+  python main.py socialmediapost -n 100
+  python main.py message -n 200
+} > full_dataset.ndjson
+#+end_src
+
+** Filter and Transform
+#+begin_src bash
+# Generate and filter by field
+python main.py person -n 100 | jq 'select(.gender == "female")'
+
+# Count by platform
+python main.py message -n 100 | jq -r '.platform' | sort | uniq -c
+#+end_src
+
+* Testing
+
+** Interactive Testing
+#+begin_src bash
+# Launch IPython with environment loaded
+nix develop -c ipython
+
+# In IPython:
+# from generators import *
+# gen = PersonGenerator()
+# gen.generate()
+#+end_src
+
+** Quick Test Single Generation
+#+begin_src bash
+python main.py person -n 1 | jq
+#+end_src
+
+* Extending
+
+** Test New Generator
+#+begin_src bash
+# After adding new generator class, test it
+python main.py newdoctype -n 1
+
+# Validate output structure
+python main.py newdoctype -n 1 | jq 'keys'
+#+end_src
