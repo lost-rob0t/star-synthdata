@@ -16,6 +16,22 @@
         "type": "github"
       }
     },
+    "nixpkgs_2": {
+      "locked": {
+        "lastModified": 1768127708,
+        "narHash": "sha256-1Sm77VfZh3mU0F5OqKABNLWxOuDeHIlcFjsXeeiPazs=",
+        "owner": "nixos",
+        "repo": "nixpkgs",
+        "rev": "ffbc9f8cbaacfb331b6017d5a5abb21a492c9a38",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nixos",
+        "ref": "nixos-unstable",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
     "root": {
       "inputs": {
         "nixpkgs": "nixpkgs",
@@ -23,16 +39,22 @@
       }
     },
     "starintel-doc": {
-      "flake": false,
+      "inputs": {
+        "nixpkgs": "nixpkgs_2"
+      },
       "locked": {
-        "path": "../spec/starintel_doc",
-        "type": "path"
+        "lastModified": 1768438517,
+        "narHash": "sha256-5L1e8UJTklRwgPGTv3FI8qRuJZGlFGaas3ZUwRMBvJM=",
+        "owner": "lost-rob0t",
+        "repo": "starintel-doc",
+        "rev": "56d0f39612f8f851d029b397f2d8556aa558a87a",
+        "type": "github"
       },
       "original": {
-        "path": "../spec/starintel_doc",
-        "type": "path"
-      },
-      "parent": []
+        "owner": "lost-rob0t",
+        "repo": "starintel-doc",
+        "type": "github"
+      }
     }
   },
   "root": "root",
