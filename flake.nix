@@ -13,9 +13,10 @@
 
       pythonEnv = pkgs.python312.withPackages (ps: with ps; [
         ipython
-        langchain
-        langchain-community
-        langchain-openai
+        # Until we need them
+        #langchain
+        #langchain-community
+        #langchain-openai
         faker
         numpy
         pandas
