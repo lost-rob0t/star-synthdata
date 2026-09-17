@@ -1,0 +1,81 @@
+name: dataset-factory
+
+on:
+  workflow_dispatch:
+    inputs:
+      synthetic_count:
+        description: Synthetic examples per task
+        required: false
+        default: "500"
+      publish_s3:
+        description: Upload dataset bundle to S3-compatible storage
+        required: false
+        type: boolean
+        default: false
+  schedule:
+    - cron: "23 5 * * 0"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      STARINTEL_LLM_TOKEN: ${{ secrets.STARINTEL_LLM_TOKEN }}
+      STARINTEL_SYNTH_MODEL: ${{ vars.STARINTEL_SYNTH_MODEL }}
+      STARINTEL_TOOL_MODEL: ${{ vars.STARINTEL_TOOL_MODEL }}
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      OPENROUTER_TOOL_MODEL: ${{ vars.OPENROUTER_TOOL_MODEL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Harvest public repositories
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python scripts/harvest_public_repos.py
+      - name: Generate actor-backed synthetic tasks
+        if: ${{ env.STARINTEL_LLM_TOKEN != '' }}
+        run: python scripts/synthesize_actor.py --count "${{ inputs.synthetic_count || '500' }}"
+      - name: Record smarter OpenRouter tool-call traces
+        if: ${{ env.OPENROUTER_API_KEY != '' && env.OPENROUTER_TOOL_MODEL != '' }}
+        run: python scripts/record_openrouter_tools.py --count "${{ inputs.synthetic_count || '500' }}"
+      - name: Build weighted training mix
+        run: |
+          mkdir -p work/synthetic
+          python scripts/build_training_mix.py
+      - name: Bundle dataset
+        run: tar --zstd -cf starintel-training-dataset.tar.zst -C work dataset repositories.json synthetic
+      - uses: actions/upload-artifact@v4
+        with:
+          name: starintel-training-dataset-${{ github.run_id }}
+          path: |
+            starintel-training-dataset.tar.zst
+            work/dataset/manifest.json
+          retention-days: 30
+      - name: Upload to S3-compatible storage
+        if: ${{ inputs.publish_s3 == true }}
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.DATASET_S3_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.DATASET_S3_SECRET_KEY }}
+          AWS_DEFAULT_REGION: ${{ vars.DATASET_S3_REGION || 'us-east-1' }}
+          AWS_ENDPOINT_URL: ${{ vars.DATASET_S3_ENDPOINT }}
+          DATASET_S3_BUCKET: ${{ vars.DATASET_S3_BUCKET }}
+        run: |
+          python -m pip install --disable-pip-version-check awscli
+          test -n "$DATASET_S3_BUCKET"
+          key="datasets/starintel/${GITHUB_SHA}/${GITHUB_RUN_ID}.tar.zst"
+          if [ -n "$AWS_ENDPOINT_URL" ]; then
+            aws s3 cp starintel-training-dataset.tar.zst "s3://${DATASET_S3_BUCKET}/${key}" --endpoint-url "$AWS_ENDPOINT_URL"
+          else
+            aws s3 cp starintel-training-dataset.tar.zst "s3://${DATASET_S3_BUCKET}/${key}"
+          fi
+          printf '%s\n' "s3://${DATASET_S3_BUCKET}/${key}" > work/dataset/dataset-uri.txt
+      - uses: actions/upload-artifact@v4
+        if: ${{ inputs.publish_s3 == true }}
+        with:
+          name: starintel-dataset-uri-${{ github.run_id }}
+          path: work/dataset/dataset-uri.txt

@@ -1,0 +1,29 @@
+# Canonical StarIntel 8B QLoRA recipe. llm.starintel.actor materializes dataset_path.
+base_model: Qwen/Qwen3-8B
+load_in_4bit: true
+adapter: qlora
+sequence_len: 8192
+sample_packing: true
+pad_to_sequence_len: true
+micro_batch_size: 1
+gradient_accumulation_steps: 16
+num_epochs: 2
+learning_rate: 0.0002
+optimizer: adamw_bnb_8bit
+bf16: auto
+fp16: false
+gradient_checkpointing: true
+flash_attention: true
+special_tokens: null
+chat_template: qwen3
+train_on_inputs: false
+val_set_size: 0.02
+output_dir: /workspace/output
+logging_steps: 5
+save_steps: 100
+warmup_ratio: 0.03
+lr_scheduler: cosine
+
+datasets:
+  - path: /workspace/dataset/train.jsonl
+    type: chat_template

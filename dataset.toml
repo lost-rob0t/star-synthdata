@@ -1,0 +1,87 @@
+[corpus]
+owners = ["lost-rob0t", "starintel-labs"]
+include_forks = false
+max_file_bytes = 1000000
+chunk_chars = 12000
+min_chunk_chars = 256
+exclude_globs = [
+  "**/.git/**",
+  "**/node_modules/**",
+  "**/vendor/**",
+  "**/dist/**",
+  "**/build/**",
+  "**/.direnv/**",
+  "**/result/**",
+  "**/*.min.js",
+  "**/*.map",
+  "**/package-lock.json",
+  "**/pnpm-lock.yaml",
+  "**/yarn.lock",
+  "**/flake.lock",
+]
+
+[corpus.languages]
+prolog = [".pl", ".pro", ".prolog"]
+common_lisp = [".lisp", ".cl", ".asd"]
+python = [".py"]
+nim = [".nim", ".nims"]
+typescript = [".ts", ".tsx"]
+javascript = [".js", ".jsx", ".mjs", ".cjs"]
+elisp = [".el"]
+shell = [".sh", ".bash"]
+json = [".json", ".jsonl", ".ndjson"]
+yaml = [".yaml", ".yml"]
+toml = [".toml"]
+org = [".org"]
+markdown = [".md"]
+rust = [".rs"]
+go = [".go"]
+java = [".java"]
+kotlin = [".kt", ".kts"]
+c = [".c", ".h"]
+cpp = [".cc", ".cpp", ".cxx", ".hpp", ".hh"]
+ruby = [".rb"]
+php = [".php"]
+scala = [".scala"]
+lua = [".lua"]
+sql = [".sql"]
+scheme = [".scm", ".ss", ".rkt"]
+haskell = [".hs"]
+css = [".css", ".scss", ".sass"]
+html = [".html", ".htm"]
+
+[mix]
+public_code = 0.45
+public_prolog = 0.15
+synthetic_starintel_prolog = 0.10
+synthetic_starintel_json = 0.10
+synthetic_tool_calling = 0.08
+synthetic_ingest = 0.04
+synthetic_migrations = 0.04
+synthetic_osint_tools = 0.04
+
+[synthetic]
+endpoint = "https://llm.starintel.actor/v1/chat/completions"
+cheap_model = "starintel/synth-cheap"
+smart_model = "starintel/synth-smart"
+openrouter_endpoint = "https://openrouter.ai/api/v1/chat/completions"
+openrouter_tool_model = ""
+count_per_task = 500
+max_tokens = 2200
+temperature = 0.35
+
+[training]
+endpoint = "https://llm.starintel.actor/v1/training/jobs"
+trainer = "axolotl"
+method = "qlora"
+base_model = "Qwen/Qwen3-8B"
+max_seq_len = 8192
+micro_batch_size = 1
+gradient_accumulation_steps = 16
+num_epochs = 2
+learning_rate = 0.0002
+gpu_min_vram_gb = 24
+gpu_max_count = 1
+compute_strategy = "cheapest_compatible"
+spot = true
+max_budget_usd = 40.0

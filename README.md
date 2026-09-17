@@ -1,115 +1,76 @@
-# StarIntel Synthetic Data Generator
+# StarIntel Dataset Factory
 
-Generate synthetic StarIntel documents using Ollama for OSINT testing and development.
+Build a reproducible fine-tuning corpus from StarIntel public code plus actor-generated synthetic tasks, then submit an 8B QLoRA job to `llm.starintel.actor`.
 
-## Features
+## Corpus
 
-- Generates Person, SocialMediaPost, and Message documents
-- Uses Ollama for realistic synthetic data
-- Outputs NDJSON to stdout for easy piping
-- Extensible architecture for adding new document types
+The dataset factory harvests public repositories owned by `lost-rob0t` and `starintel-labs`, records repository/path/license provenance, chunks supported source files, and converts them into deterministic code-continuation tasks. Prolog is kept as its own task family.
 
-## Setup
+Synthetic shards are generated through the OpenAI-compatible `https://llm.starintel.actor/v1/chat/completions` endpoint:
+
+- StarIntel Prolog facts, rules, validation, and tests
+- StarIntel JSON/JSON-LD documents and actor manifests
+- simulated tool-calling conversations
+- ingest jobs
+- reversible migrations
+- public-source OSINT tool designs with rate-limit/privacy constraints
+
+`dataset.toml` defines the target mix. `scripts/build_training_mix.py` emits OpenAI-messages JSONL plus an immutable SHA-256 manifest.
+
+## GitHub Actions
+
+`dataset-factory.yml` runs manually or weekly. It harvests public repositories, optionally creates synthetic shards with `STARINTEL_LLM_TOKEN`, builds the weighted mix, and uploads a compressed Actions artifact. With the S3-compatible dataset secrets/variables configured it also publishes the bundle to object storage for training.
+
+Required secret for actor synthesis/training:
+
+```text
+STARINTEL_LLM_TOKEN
+```
+
+Optional S3-compatible settings:
+
+```text
+DATASET_S3_ACCESS_KEY       secret
+DATASET_S3_SECRET_KEY       secret
+DATASET_S3_ENDPOINT         variable
+DATASET_S3_BUCKET           variable
+DATASET_S3_REGION           variable
+```
+
+Optional model/teacher settings:
+
+```text
+STARINTEL_SYNTH_MODEL       default: starintel/synth-cheap
+STARINTEL_TOOL_MODEL        default: starintel/synth-smart
+OPENROUTER_API_KEY          secret; enables direct curl tool-call recording
+OPENROUTER_TOOL_MODEL       variable; explicit stronger teacher model
+```
+
+Bulk JSON/Prolog/ingest/migration synthesis uses `llm.starintel.actor`. OSINT-tool synthesis uses the actor smart alias. Tool-calling has an actor fallback, but when `OPENROUTER_API_KEY` and `OPENROUTER_TOOL_MODEL` are set the workflow overwrites that shard with direct OpenRouter traces recorded via `curl`, preserving the teacher response metadata.
+
+## Fine-tuning
+
+`fine-tune.yml` accepts a corpus URI and submits it to:
+
+```text
+POST https://llm.starintel.actor/v1/training/jobs
+```
+
+The request asks the actor for `cheapest_compatible` compute, a single GPU with at least 24 GiB VRAM, spot capacity when allowed, and a hard dollar budget. The default recipe is Axolotl QLoRA for `Qwen/Qwen3-8B`, 4-bit loading, 8k context, and OpenAI-style chat data. The full actor contract is in `docs/training-contract.md`.
+
+Run locally:
 
 ```bash
-nix develop
+python scripts/harvest_public_repos.py
+STARINTEL_LLM_TOKEN=... python scripts/synthesize_actor.py --count 100
+OPENROUTER_API_KEY=... OPENROUTER_TOOL_MODEL=... \
+  python scripts/record_openrouter_tools.py --count 100
+python scripts/build_training_mix.py
+python scripts/submit_finetune.py \
+  --dataset-uri s3://starintel-datasets/example.tar.zst \
+  --budget 40
 ```
 
-Ensure Ollama is running:
-```bash
-ollama serve
-```
+## Legacy synthetic documents
 
-Pull a model:
-```bash
-ollama pull llama3.2
-```
-
-## Usage
-
-Generate documents:
-```bash
-# Generate 5 people
-python main.py person -n 5
-
-# Generate 10 social media posts
-python main.py socialmediapost -n 10
-
-# Generate 20 messages with custom dataset
-python main.py message -n 20 -d mydata
-
-# Use a different model
-python main.py person -n 5 -m mistral
-
-# Save to file
-python main.py person -n 100 > people.ndjson
-```
-
-## Extending with New Document Types
-
-To add a new document type:
-
-1. **Create a Generator Class** in `generators.py`:
-
-```python
-class NewDocTypeGenerator(OllamaGenerator):
-    """Generate synthetic NewDocType documents."""
-
-    def get_prompt(self) -> str:
-        return """Generate a realistic document with fields in JSON format:
-{
-  "field1": "value",
-  "field2": number
-}
-Return ONLY the JSON object, no additional text."""
-
-    def parse_response(self, response: str) -> Dict[str, Any]:
-        data = json.loads(response)
-        return {
-            "dtype": "newdoctype",
-            "field1": data.get("field1", ""),
-            "field2": data.get("field2", 0)
-        }
-```
-
-2. **Register in GENERATORS dict** in `generators.py`:
-
-```python
-GENERATORS = {
-    "person": PersonGenerator,
-    "socialmediapost": SocialMediaPostGenerator,
-    "message": MessageGenerator,
-    "newdoctype": NewDocTypeGenerator,  # Add here
-}
-```
-
-3. **Add creation logic** in `main.py`:
-
-```python
-elif doc_type == "newdoctype":
-    doc = new_newdoctype(
-        dataset=dataset,
-        field1=raw_data.get("field1", ""),
-        field2=raw_data.get("field2", 0)
-    )
-```
-
-4. **Use it**:
-
-```bash
-python main.py newdoctype -n 10
-```
-
-## Flake Outputs
-
-- `packages.x86_64-linux.default` - Built synthdata CLI tool
-- `devShells.x86_64-linux.default` - Development environment with all dependencies
-- `apps.x86_64-linux.default` - Run synthdata CLI
-- `apps.x86_64-linux.ipython` - Run IPython for interactive development
-
-## Options
-
-- `-n, --count` - Number of documents to generate (default: 10)
-- `-d, --dataset` - Dataset name (default: synthdata)
-- `-m, --model` - Ollama model to use (default: llama3.2)
-- `-u, --url` - Ollama base URL (default: http://localhost:11434)
+The original `main.py`/`generators.py` Ollama document generator remains available for Person, SocialMediaPost, and Message NDJSON generation.
