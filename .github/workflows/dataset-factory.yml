@@ -26,6 +26,8 @@ jobs:
       STARINTEL_LLM_TOKEN: ${{ secrets.STARINTEL_LLM_TOKEN }}
       STARINTEL_SYNTH_MODEL: ${{ vars.STARINTEL_SYNTH_MODEL }}
       STARINTEL_TOOL_MODEL: ${{ vars.STARINTEL_TOOL_MODEL }}
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      OPENROUTER_TOOL_MODEL: ${{ vars.OPENROUTER_TOOL_MODEL }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -38,6 +40,9 @@ jobs:
       - name: Generate actor-backed synthetic tasks
         if: ${{ env.STARINTEL_LLM_TOKEN != '' }}
         run: python scripts/synthesize_actor.py --count "${{ inputs.synthetic_count || '500' }}"
+      - name: Record smarter OpenRouter tool-call traces
+        if: ${{ env.OPENROUTER_API_KEY != '' && env.OPENROUTER_TOOL_MODEL != '' }}
+        run: python scripts/record_openrouter_tools.py --count "${{ inputs.synthetic_count || '500' }}"
       - name: Build weighted training mix
         run: |
           mkdir -p work/synthetic
