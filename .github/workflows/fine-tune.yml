@@ -1,0 +1,64 @@
+name: fine-tune-on-llm-actor
+
+on:
+  workflow_dispatch:
+    inputs:
+      dataset_uri:
+        description: S3/HTTPS URI for a dataset-factory tar.zst bundle
+        required: true
+      base_model:
+        description: Hugging Face base model
+        required: false
+        default: "Qwen/Qwen3-8B"
+      max_budget_usd:
+        description: Hard GPU rental budget ceiling
+        required: false
+        default: "40"
+
+permissions:
+  contents: read
+
+jobs:
+  submit:
+    runs-on: ubuntu-latest
+    env:
+      STARINTEL_LLM_TOKEN: ${{ secrets.STARINTEL_LLM_TOKEN }}
+      STARINTEL_BASE_MODEL: ${{ inputs.base_model }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.DATASET_S3_ACCESS_KEY }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.DATASET_S3_SECRET_KEY }}
+      AWS_DEFAULT_REGION: ${{ vars.DATASET_S3_REGION || 'us-east-1' }}
+      AWS_ENDPOINT_URL: ${{ vars.DATASET_S3_ENDPOINT }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install S3 client
+        if: ${{ startsWith(inputs.dataset_uri, 's3://') }}
+        run: python -m pip install --disable-pip-version-check awscli
+      - name: Resolve dataset manifest
+        env:
+          DATASET_URI: ${{ inputs.dataset_uri }}
+        run: |
+          python - <<'PY'
+          import os, pathlib, subprocess, urllib.request
+          uri = os.environ["DATASET_URI"]
+          pathlib.Path("work/dataset").mkdir(parents=True, exist_ok=True)
+          if uri.startswith("s3://"):
+              command = ["aws", "s3", "cp", uri, "dataset.tar.zst"]
+              endpoint = os.environ.get("AWS_ENDPOINT_URL")
+              if endpoint:
+                  command += ["--endpoint-url", endpoint]
+              subprocess.run(command, check=True)
+          else:
+              urllib.request.urlretrieve(uri, "dataset.tar.zst")
+          subprocess.run(["tar", "--zstd", "-xf", "dataset.tar.zst"], check=True)
+          manifest = next(pathlib.Path(".").rglob("manifest.json"))
+          pathlib.Path("work/dataset/manifest.json").write_bytes(manifest.read_bytes())
+          PY
+      - name: Submit training job to llm.starintel.actor
+        run: python scripts/submit_finetune.py --dataset-uri "${{ inputs.dataset_uri }}" --base-model "${{ inputs.base_model }}" --budget "${{ inputs.max_budget_usd }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: starintel-training-job-${{ github.run_id }}
+          path: work/training-job.json
