@@ -1,0 +1,2 @@
+starintel-doc @ git+https://github.com/lost-rob0t/starintel-doc.git@d450ba77ca2cb0c11b8bf6edd8fac3250101c308
+httpx>=0.27,<1

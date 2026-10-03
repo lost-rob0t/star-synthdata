@@ -4,12 +4,40 @@
 import sys
 import json
 import argparse
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent / "spec" / "starintel_doc"))
-
-from starintel_doc.entities import new_person
-from starintel_doc.social_media import new_message, new_social_media_post
+from uuid import uuid4
+from starintel_canonical import validate_document
 from generators import get_generator, GENERATORS
+
+
+def build_document(doc_type: str, raw_data: dict, dataset: str) -> dict:
+    """Project generated values, preserving non-contract metadata explicitly."""
+    dtype = {"socialmediapost": "socialmpost"}.get(doc_type, doc_type)
+    if dtype not in {"person", "socialmpost", "message"}:
+        raise ValueError(f"Unsupported generator: {doc_type}")
+    from starintel_canonical import load_schema, DOCUMENT_TYPES
+    fields = load_schema()["$defs"][DOCUMENT_TYPES[dtype]]["properties"]
+    doc = {"id": f"synthetic:{uuid4()}", "dataset": dataset,
+           "dtype": dtype, "schemaVersion": "0.10.1",
+           "collector": "star-synthdata", "labels": ["synthetic"],
+           "extensions": {"star_synthdata": {"synthetic": True}}}
+    extra = {}
+    for key, value in raw_data.items():
+        if key == "dtype":
+            continue
+        target = "message" if dtype == "message" and key == "content" else key
+        # Generated handles, media URLs and reply IDs are not proven StarReferences.
+        if target in {"user", "media", "replyTo", "mentions"}:
+            extra[key] = value
+        elif target in fields and target not in doc:
+            if target in {"dob", "url"} and value == "":
+                continue
+            doc[target] = value
+        else:
+            extra[key] = value
+    if extra:
+        doc["extensions"]["star_synthdata"]["generatedMetadata"] = extra
+    validate_document(doc)
+    return doc
 
 
 def generate_documents(doc_type: str, count: int, dataset: str, model: str, base_url: str):
@@ -22,54 +50,8 @@ def generate_documents(doc_type: str, count: int, dataset: str, model: str, base
                 # Generate raw data using Ollama
                 raw_data = generator.generate()
 
-                # Create proper StarIntel document
-                if doc_type == "person":
-                    doc = new_person(
-                        dataset=dataset,
-                        fname=raw_data.get("fname", ""),
-                        lname=raw_data.get("lname", ""),
-                        etype=raw_data.get("etype", "person"),
-                        mname=raw_data.get("mname", ""),
-                        gender=raw_data.get("gender", ""),
-                        bio=raw_data.get("bio", ""),
-                        dob=raw_data.get("dob", ""),
-                        race=raw_data.get("race", "")
-                    )
-                elif doc_type == "socialmediapost":
-                    doc = new_social_media_post(
-                        dataset=dataset,
-                        content=raw_data.get("content", ""),
-                        user=raw_data.get("user", ""),
-                        media=raw_data.get("media", []),
-                        replyCount=raw_data.get("replyCount", 0),
-                        repostCount=raw_data.get("repostCount", 0),
-                        url=raw_data.get("url", ""),
-                        links=raw_data.get("links", []),
-                        tags=raw_data.get("tags", []),
-                        title=raw_data.get("title", ""),
-                        group=raw_data.get("group", ""),
-                        replyTo=raw_data.get("replyTo", "")
-                    )
-                elif doc_type == "message":
-                    doc = new_message(
-                        dataset=dataset,
-                        content=raw_data.get("content", ""),
-                        platform=raw_data.get("platform", ""),
-                        user=raw_data.get("user", ""),
-                        isReply=raw_data.get("isReply", False),
-                        media=raw_data.get("media", []),
-                        messageId=raw_data.get("messageId", ""),
-                        replyTo=raw_data.get("replyTo", ""),
-                        group=raw_data.get("group", ""),
-                        channel=raw_data.get("channel", ""),
-                        mentions=raw_data.get("mentions", [])
-                    )
-                else:
-                    print(f"Error: Unknown document type {doc_type}", file=sys.stderr)
-                    continue
-
-                # Output as NDJSON
-                print(doc.to_json())
+                doc = build_document(doc_type, raw_data, dataset)
+                print(json.dumps(doc, ensure_ascii=False, allow_nan=False))
 
             except Exception as e:
                 print(f"Error generating document: {e}", file=sys.stderr)
