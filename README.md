@@ -113,3 +113,18 @@ python main.py newdoctype -n 10
 - `-d, --dataset` - Dataset name (default: synthdata)
 - `-m, --model` - Ollama model to use (default: llama3.2)
 - `-u, --url` - Ollama base URL (default: http://localhost:11434)
+
+## Canonical StarIntel 0.10.1 output
+
+Install `python -m pip install -r requirements.txt` or use the pinned Nix shell.
+The CLI now emits flat canonical `id`/`schemaVersion` documents and validates
+before writing NDJSON. The `socialmediapost` CLI choice maps to `socialmpost`;
+message text maps to `message`. Generated handles and media URLs remain under
+`extensions.star_synthdata.generatedMetadata` rather than fabricated references.
+Every record is explicitly labeled synthetic. Invalid model output is rejected.
+The extension examples are raw generator metadata, not validated wire documents.
+New document types must be added to the projection and pass canonical validation.
+
+Authority: StarLang `765f1673851192bcaf1cdd2f35c47608f979b079`, consumed through
+starintel-doc `d450ba77ca2cb0c11b8bf6edd8fac3250101c308` (PR #14). These draft
+upstream dependencies must land before release. Historical data is not rewritten.

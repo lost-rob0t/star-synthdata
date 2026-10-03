@@ -3,7 +3,7 @@
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
-    starintel-doc.url = "github:lost-rob0t/starintel-doc";
+    starintel-doc.url = "github:lost-rob0t/starintel-doc/d450ba77ca2cb0c11b8bf6edd8fac3250101c308";
   };
 
   outputs = { self, nixpkgs, starintel-doc }:
