@@ -1,6 +1,16 @@
 # StarIntel Synthetic Data Generator
 
 Generate synthetic StarIntel documents using Ollama for OSINT testing and development.
+StarLang is the sole specification authority. The pinned Python runtime validates
+flat **0.10.1** documents before NDJSON output; the complete generated release is
+locked in `schema/starintel-schema.lock.json`. Unknown or incompatible generated
+input remains under `extensions["starintel.synthdata"]`, including the exact
+Ollama response. Unresolved usernames/media are retained rather than inventing
+StarIntel document references. The command exits nonzero if generation fails.
+
+Repin with `scripts/sync-starintel-schema.py --commit <full-StarLang-SHA>` and
+update the immutable Python runtime/Nix dependency after its conformance passes.
+Run `nix flake check -L` for full package and mocked real-HTTP-boundary validation.
 
 ## Features
 

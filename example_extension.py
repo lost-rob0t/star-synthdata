@@ -16,7 +16,7 @@ class WebPageGenerator(OllamaGenerator):
     This is an example generator. To use it:
     1. Import it in main.py
     2. Add it to GENERATORS dict in generators.py
-    3. Add the creation logic in main.py generate_documents()
+    3. Select a dtype declared in the StarLang-generated manifest.
     """
 
     def get_prompt(self) -> str:
@@ -97,14 +97,9 @@ Generate a diverse, realistic email. Return ONLY the JSON object, no additional 
 #        "email": EmailGenerator,
 #    }
 #
-# 2. Add creation logic in main.py generate_documents():
-#    elif doc_type == "webpage":
-#        doc = new_webpage(
-#            dataset=dataset,
-#            url=raw_data.get("url", ""),
-#            title=raw_data.get("title", ""),
-#            ...
-#        )
+# 2. main.py validates declared fields against StarLang's generated schema.
+#    Unknown or incompatible fields and the exact Ollama response are retained
+#    in extensions. New document types must first be added to StarLang.
 #
 # 3. Use it:
 #    python main.py webpage -n 10
