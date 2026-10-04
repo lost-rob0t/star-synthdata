@@ -3,7 +3,7 @@
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
-    starintel-doc.url = "github:lost-rob0t/starintel-doc";
+    starintel-doc.url = "github:lost-rob0t/starintel-doc/ac015a5d92a1d9587e5dc7764dd9e0a150a6d0a8";
   };
 
   outputs = { self, nixpkgs, starintel-doc }:
@@ -37,7 +37,14 @@
           version = "0.1.0";
           src = ./.;
 
-          nativeBuildInputs = [ pkgs.makeWrapper ];
+          nativeBuildInputs = [ pkgs.makeWrapper pkgs.python3 ];
+          doCheck = true;
+          doInstallCheck = true;
+          checkPhase = ''
+            export SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt
+            python3 scripts/sync-starintel-schema.py --offline
+            ${pythonEnv}/bin/python -m unittest discover -s tests -v
+          '';
           
           installPhase = ''
             mkdir -p $out/bin $out/lib
@@ -49,8 +56,14 @@
             makeWrapper ${pythonEnv}/bin/python $out/bin/synthdata \
               --add-flags "$out/lib/main.py"
           '';
+          installCheckPhase = ''
+            export SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt
+            ${pythonEnv}/bin/python tests/installed_cli.py "$out/bin/synthdata"
+          '';
         };
       };
+
+      checks.${system}.default = self.packages.${system}.default;
 
       devShells.${system}.default = pkgs.mkShell {
         buildInputs = with pkgs; [

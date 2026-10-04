@@ -43,7 +43,10 @@ class OllamaGenerator(ABC):
         result = response.json()
         llm_output = result["response"]
 
-        return self.parse_response(llm_output)
+        parsed = self.parse_response(llm_output)
+        # Preserve the exact generated response alongside the typed projection.
+        parsed["ollamaResponse"] = llm_output
+        return parsed
 
     def close(self):
         """Close the HTTP client."""
