@@ -14,6 +14,7 @@ from .kb import load_kb
 
 NS = 'org.starintel.synthdata'
 MODEL_VERSION = 3
+SYMMETRIC_PREDICATES = frozenset(('knows', 'collaborated_with'))
 
 
 def canonical(value):
@@ -100,7 +101,7 @@ class Builder:
         return doc
 
     def edge(self, source, destination, predicate, at=None, evidence=None, weight=None):
-        symmetric = predicate in ('knows', 'collaborated_with')
+        symmetric = predicate in SYMMETRIC_PREDICATES
         if symmetric and source['id'] > destination['id']:
             source, destination = destination, source
         key = (source['id'], predicate, destination['id'])
@@ -293,9 +294,11 @@ def validate_graph(documents, kb=None):
                 raise ValueError('invalid relation endpoints')
             if rule['local'] and community(a) != community(b):
                 raise ValueError('nonlocal relation violates KB')
-            pair = (a['id'], b['id'])
-            if d['direction'] == 'symmetric':
-                pair = tuple(sorted(pair))
+            symmetric = d['predicate'] in SYMMETRIC_PREDICATES
+            expected_direction = 'symmetric' if symmetric else 'directed'
+            if d['direction'] != expected_direction:
+                raise ValueError('relation direction does not match predicate')
+            pair = tuple(sorted((a['id'], b['id']))) if symmetric else (a['id'], b['id'])
             key = (d['predicate'], *pair)
             if key in edges:
                 raise ValueError('duplicate relation')
