@@ -43,16 +43,17 @@
         "nixpkgs": "nixpkgs_2"
       },
       "locked": {
-        "lastModified": 1768438517,
-        "narHash": "sha256-5L1e8UJTklRwgPGTv3FI8qRuJZGlFGaas3ZUwRMBvJM=",
+        "lastModified": 1791129200,
+        "narHash": "sha256-AEmghTaQb8mCvLxSpP3f71ftcZ1yBpdX4Uh6rlujIg4=",
         "owner": "lost-rob0t",
         "repo": "starintel-doc",
-        "rev": "56d0f39612f8f851d029b397f2d8556aa558a87a",
+        "rev": "6aa8051dc7ea560943a60a25e1d600467f2778bc",
         "type": "github"
       },
       "original": {
         "owner": "lost-rob0t",
         "repo": "starintel-doc",
+        "rev": "6aa8051dc7ea560943a60a25e1d600467f2778bc",
         "type": "github"
       }
     }

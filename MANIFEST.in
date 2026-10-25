@@ -1,0 +1,2 @@
+recursive-include examples *.json *.jsonl *.txt *.dot
+include flake.nix flake.lock

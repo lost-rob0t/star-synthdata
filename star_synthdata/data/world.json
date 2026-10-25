@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "description": "Invented archipelago; coordinates are illustrative ocean points, not personal addresses.",
+  "given_names": ["Aven", "Belin", "Ceryn", "Davo", "Elari", "Fenno", "Galenna", "Hesin", "Ivara", "Joril", "Kelvo", "Lurei", "Marenna", "Nelis", "Orven", "Pella", "Querin", "Ravo", "Selya", "Tovin", "Ulen", "Veyra", "Welin", "Xaro", "Yenna", "Zorin"],
+  "family_names": ["Asterquay", "Bramblewake", "Cloudmere", "Dunewick", "Emberfen", "Frostvale", "Glimmerholt", "Harborleaf", "Ivystone", "Juniperwake", "Kestrelmere", "Lanternford", "Mossquill", "Nightbrook", "Opalreed", "Pebblehollow"],
+  "places": [
+    {"name": "Aster Quay", "latitude": "-40.20", "longitude": "-132.10", "character": "port and repair yards"},
+    {"name": "Lantern Reach", "latitude": "-40.24", "longitude": "-132.15", "character": "research and education"},
+    {"name": "Cloudmere", "latitude": "-40.31", "longitude": "-132.19", "character": "cooperatives and farms"},
+    {"name": "Opal Inlet", "latitude": "-40.35", "longitude": "-132.24", "character": "trade and public services"},
+    {"name": "Juniper Sound", "latitude": "-40.42", "longitude": "-132.28", "character": "arts and workshops"},
+    {"name": "Mosslight Bay", "latitude": "-40.48", "longitude": "-132.32", "character": "energy and communications"}
+  ],
+  "household_sizes": [1, 2, 2, 3, 3, 4],
+  "sectors": [
+    {"name": "marine logistics", "suffix": "Harbor Cooperative", "roles": ["dispatcher", "navigator", "mechanic"], "service": "cargo scheduling", "topics": ["berth planning", "repair rota", "supply delivery"]},
+    {"name": "education", "suffix": "Learning Institute", "roles": ["tutor", "librarian", "coordinator"], "service": "course catalogue", "topics": ["open workshop", "reading circle", "training programme"]},
+    {"name": "research", "suffix": "Tidal Observatory", "roles": ["analyst", "technician", "researcher"], "service": "instrument registry", "topics": ["sensor maintenance", "tidal measurements", "field experiment"]},
+    {"name": "agriculture", "suffix": "Seed Collective", "roles": ["grower", "planner", "steward"], "service": "harvest exchange", "topics": ["seed exchange", "water sharing", "harvest timetable"]},
+    {"name": "energy", "suffix": "Current Works", "roles": ["engineer", "operator", "inspector"], "service": "maintenance portal", "topics": ["grid inspection", "turbine repair", "storage trial"]},
+    {"name": "civic services", "suffix": "Common Hall", "roles": ["clerk", "mediator", "organizer"], "service": "community noticeboard", "topics": ["public meeting", "path repair", "resource allocation"]},
+    {"name": "communications", "suffix": "Signal Guild", "roles": ["maintainer", "developer", "designer"], "service": "local message board", "topics": ["network upgrade", "accessibility review", "service planning"]},
+    {"name": "arts", "suffix": "Lantern Studio", "roles": ["maker", "curator", "producer"], "service": "exhibition calendar", "topics": ["gallery opening", "shared workshop", "festival preparation"]}
+  ],
+  "events": [
+    {"kind": "workshop", "title": "Planning workshop", "action": "agreed a shared schedule"},
+    {"kind": "review", "title": "Quarterly review", "action": "reviewed progress and assigned follow-up work"},
+    {"kind": "exchange", "title": "Community exchange", "action": "shared materials and practical knowledge"},
+    {"kind": "maintenance", "title": "Maintenance session", "action": "completed a simulated maintenance exercise"}
+  ],
+  "scenarios": {
+    "archipelago": {"locality": 0.85, "events_per_person": 0.3, "ties_per_person": 3},
+    "trade": {"locality": 0.45, "events_per_person": 0.5, "ties_per_person": 4},
+    "campus": {"locality": 0.95, "events_per_person": 0.8, "ties_per_person": 5}
+  },
+  "relations": {
+    "member_of_household": {"source": ["person"], "destination": ["org"], "local": true},
+    "lives_in": {"source": ["person", "org"], "destination": ["location"], "local": true},
+    "works_at": {"source": ["person"], "destination": ["org"], "local": true},
+    "owns_account": {"source": ["person"], "destination": ["user"], "local": true},
+    "operates": {"source": ["org"], "destination": ["host"], "local": true},
+    "hosts": {"source": ["host"], "destination": ["service"], "local": true},
+    "knows": {"source": ["person"], "destination": ["person"], "local": false},
+    "collaborated_with": {"source": ["person"], "destination": ["person"], "local": true},
+    "attended": {"source": ["person"], "destination": ["event"], "local": true},
+    "organized": {"source": ["org"], "destination": ["event"], "local": true},
+    "records": {"source": ["file"], "destination": ["event"], "local": true}
+  }
+}

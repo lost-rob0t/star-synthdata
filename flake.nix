@@ -3,7 +3,7 @@
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
-    starintel-doc.url = "github:lost-rob0t/starintel-doc";
+    starintel-doc.url = "github:lost-rob0t/starintel-doc/6aa8051dc7ea560943a60a25e1d600467f2778bc";
   };
 
   outputs = { self, nixpkgs, starintel-doc }:
@@ -13,6 +13,7 @@
 
       pythonEnv = pkgs.python312.withPackages (ps: with ps; [
         ipython
+        pytest
         # Until we need them
         #langchain
         #langchain-community
@@ -34,7 +35,7 @@
       packages.${system} = {
         default = pkgs.stdenv.mkDerivation {
           pname = "starintel-synthdata";
-          version = "0.1.0";
+          version = "0.2.0";
           src = ./.;
 
           nativeBuildInputs = [ pkgs.makeWrapper ];
@@ -43,7 +44,8 @@
             mkdir -p $out/bin $out/lib
 
             # Copy Python modules
-            cp -r *.py $out/lib/ 2>/dev/null || true
+            cp *.py $out/lib/
+            cp -r star_synthdata $out/lib/
 
             # Create wrapper script
             makeWrapper ${pythonEnv}/bin/python $out/bin/synthdata \
@@ -51,6 +53,19 @@
           '';
         };
       };
+
+      checks.${system}.world = pkgs.runCommand "synthdata-world-tests" {
+        nativeBuildInputs = [ pythonEnv ];
+      } ''
+        export PYTHONPATH=${self.packages.${system}.default}/lib
+        export SYNTHDATA_CLI=${self.packages.${system}.default}/bin/synthdata
+        export PYTHONDONTWRITEBYTECODE=1
+        python -m pytest -q -p no:cacheprovider ${self}/tests
+        $SYNTHDATA_CLI world --size 12 --output smoke
+        $SYNTHDATA_CLI validate smoke
+        $SYNTHDATA_CLI import-fixture smoke smoke.sqlite
+        touch $out
+      '';
 
       devShells.${system}.default = pkgs.mkShell {
         buildInputs = with pkgs; [

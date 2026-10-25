@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "starintel-synthdata"
+version = "0.2.0"
+description = "Offline fictional worlds and canonical StarIntel fixtures"
+requires-python = ">=3.10"
+dependencies = [
+  "starintel_doc @ git+https://github.com/lost-rob0t/starintel-doc.git@6aa8051dc7ea560943a60a25e1d600467f2778bc",
+  "httpx>=0.27,<1",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8,<10"]
+
+[project.scripts]
+synthdata = "star_synthdata.cli:main"
+
+[tool.setuptools]
+packages = ["star_synthdata", "star_synthdata.data"]
+py-modules = ["main", "generators"]
+
+[tool.setuptools.package-data]
+star_synthdata = ["data/*.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

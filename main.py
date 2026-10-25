@@ -4,16 +4,17 @@
 import sys
 import json
 import argparse
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent / "spec" / "starintel_doc"))
+from uuid import uuid4
+from starintel_canonical import SPEC_VERSION, generated, load_schema, validate_document
 
-from starintel_doc.entities import new_person
-from starintel_doc.social_media import new_message, new_social_media_post
 from generators import get_generator, GENERATORS
 
 
 def generate_documents(doc_type: str, count: int, dataset: str, model: str, base_url: str):
     """Generate documents and output as NDJSON to stdout."""
+    if not 1 <= count <= 2000:
+        raise ValueError("count must be in 1..2000")
+    schema = load_schema()
     generator = get_generator(doc_type, model=model, base_url=base_url)
 
     try:
@@ -22,64 +23,34 @@ def generate_documents(doc_type: str, count: int, dataset: str, model: str, base
                 # Generate raw data using Ollama
                 raw_data = generator.generate()
 
-                # Create proper StarIntel document
-                if doc_type == "person":
-                    doc = new_person(
-                        dataset=dataset,
-                        fname=raw_data.get("fname", ""),
-                        lname=raw_data.get("lname", ""),
-                        etype=raw_data.get("etype", "person"),
-                        mname=raw_data.get("mname", ""),
-                        gender=raw_data.get("gender", ""),
-                        bio=raw_data.get("bio", ""),
-                        dob=raw_data.get("dob", ""),
-                        race=raw_data.get("race", "")
-                    )
-                elif doc_type == "socialmediapost":
-                    doc = new_social_media_post(
-                        dataset=dataset,
-                        content=raw_data.get("content", ""),
-                        user=raw_data.get("user", ""),
-                        media=raw_data.get("media", []),
-                        replyCount=raw_data.get("replyCount", 0),
-                        repostCount=raw_data.get("repostCount", 0),
-                        url=raw_data.get("url", ""),
-                        links=raw_data.get("links", []),
-                        tags=raw_data.get("tags", []),
-                        title=raw_data.get("title", ""),
-                        group=raw_data.get("group", ""),
-                        replyTo=raw_data.get("replyTo", "")
-                    )
-                elif doc_type == "message":
-                    doc = new_message(
-                        dataset=dataset,
-                        content=raw_data.get("content", ""),
-                        platform=raw_data.get("platform", ""),
-                        user=raw_data.get("user", ""),
-                        isReply=raw_data.get("isReply", False),
-                        media=raw_data.get("media", []),
-                        messageId=raw_data.get("messageId", ""),
-                        replyTo=raw_data.get("replyTo", ""),
-                        group=raw_data.get("group", ""),
-                        channel=raw_data.get("channel", ""),
-                        mentions=raw_data.get("mentions", [])
-                    )
-                else:
-                    print(f"Error: Unknown document type {doc_type}", file=sys.stderr)
-                    continue
-
-                # Output as NDJSON
-                print(doc.to_json())
+                # Preserve raw model output without confusing historical fields with
+                # the canonical generated contract. No guessed references are emitted.
+                dtype = {"socialmediapost": "social-media-post"}.get(doc_type, doc_type)
+                definition = {"person": generated.Person, "message": generated.Message,
+                              "socialmediapost": generated.SocialMediaPost}[doc_type]
+                fields = {"person": {k: raw_data[k] for k in ("fname", "lname", "bio", "dob") if raw_data.get(k)},
+                          "message": {"message": raw_data.get("content", ""), "platform": raw_data.get("platform", "fictional-board")},
+                          "socialmediapost": {"content": raw_data.get("content", "")}}[doc_type]
+                doc = definition(id="synthetic:"+str(uuid4()), dataset=dataset, dtype=dtype,
+                                 schemaVersion=SPEC_VERSION, labels=["synthetic", "ollama-unverified"],
+                                 extensions={"org.starintel.synthdata": {"synthetic": True, "rawModelOutput": raw_data}},
+                                 **fields)
+                validate_document(doc, schema)
+                print(json.dumps(doc, ensure_ascii=False))
 
             except Exception as e:
                 print(f"Error generating document: {e}", file=sys.stderr)
-                continue
+                raise
 
     finally:
         generator.close()
 
 
-def main():
+def main(argv=None):
+    argv = list(sys.argv[1:] if argv is None else argv)
+    if argv and argv[0] in ("world", "validate", "import-fixture"):
+        from star_synthdata.cli import main as world_main
+        return world_main(argv)
     parser = argparse.ArgumentParser(
         description="Generate synthetic StarIntel documents using Ollama"
     )
@@ -110,7 +81,7 @@ def main():
         help="Ollama base URL (default: http://localhost:11434)"
     )
 
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     generate_documents(
         doc_type=args.doc_type,
