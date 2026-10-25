@@ -79,7 +79,7 @@ def test_topology_characteristics():
     assert fractions['preferential'] > .7
     assert maximum['preferential'] > maximum['uniform']
 
-@pytest.mark.parametrize('mutation', ['duplicate', 'dangling', 'future', 'young', 'role', 'community', 'duplicate_edge', 'file', 'schema', 'evidence'])
+@pytest.mark.parametrize('mutation', ['duplicate', 'dangling', 'future', 'young', 'role', 'community', 'duplicate_edge', 'reverse_symmetric_direction', 'file', 'schema', 'evidence'])
 def test_rejects_corrupt_graph(world, mutation):
     docs = deepcopy(world.documents)
     person = next(d for d in docs if d['dtype'] == 'person')
@@ -100,6 +100,13 @@ def test_rejects_corrupt_graph(world, mutation):
     elif mutation == 'duplicate_edge':
         copied = deepcopy(relation)
         copied['id'] += '-duplicate'
+        docs.append(copied)
+    elif mutation == 'reverse_symmetric_direction':
+        symmetric = next(d for d in docs if d['dtype'] == 'relation' and d['predicate'] == 'knows')
+        copied = deepcopy(symmetric)
+        copied['id'] += '-reverse-directed'
+        copied['source'], copied['destination'] = symmetric['destination'], symmetric['source']
+        copied['direction'] = 'directed'
         docs.append(copied)
     elif mutation == 'file':
         next(d for d in docs if d['dtype'] == 'file')['rawContent'] += 'tampered'
