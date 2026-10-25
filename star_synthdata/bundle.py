@@ -12,6 +12,9 @@ def export(world, destination):
     """Create a new directory; never merge into an existing dataset."""
     if validate_graph(world.documents, world.kb) != world.manifest['truth'] or validate_graph(world.observations, world.kb) != world.manifest['observations']:
         raise ValueError('world changed after manifest creation')
+    expected_artifacts = {d['filename']: d['rawContent'] for d in world.documents if d['dtype'] == 'file'}
+    if world.artifacts != expected_artifacts or any(Path(name).name != name or name in ('.', '..') for name in world.artifacts):
+        raise ValueError('artifact payloads or filenames do not match file records')
     destination = Path(destination)
     destination.mkdir(parents=True, exist_ok=False)
     payloads = {

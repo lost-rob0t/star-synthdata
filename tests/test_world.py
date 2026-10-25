@@ -183,7 +183,7 @@ def test_existing_ollama_boundary(monkeypatch, capsys, dtype):
 def test_larger_bounded_scenario(tmp_path):
     world = generate(Config(size=500, communities=6, scenario='trade', missingness=.2))
     assert world.manifest['truth']['types']['person'] == 500
-    assert len(world.documents) < 15000
+    assert len(world.documents) < 30000
     export(world, tmp_path/'large')
     assert import_fixture(tmp_path/'large', tmp_path/'large.sqlite', True) == world.manifest['observations']
 
@@ -233,7 +233,20 @@ def test_export_revalidates_mutable_api(world, tmp_path):
 
 def test_expired_reference_rejected(world):
     docs = deepcopy(world.documents)
-    person = next(d for d in docs if d['dtype'] == 'person')
+    event = next(d for d in docs if d['dtype'] == 'event')
+    person = next(d for d in docs if d['id'] == event['participantIds'][0])
     person['validUntil'] = person['createdAt'] + 1
     with pytest.raises(ValueError, match='lifetime'):
         validate_graph(docs)
+
+@pytest.mark.parametrize('change', ['payload', 'path'])
+def test_export_checks_artifacts_before_write(world, tmp_path, change):
+    altered = deepcopy(world)
+    if change == 'payload':
+        first = next(iter(altered.artifacts))
+        altered.artifacts[first] += 'tampered'
+    else:
+        altered.artifacts['../../outside.txt'] = 'not allowed'
+    with pytest.raises(ValueError, match='artifact'):
+        export(altered, tmp_path/'invalid')
+    assert not (tmp_path/'invalid').exists()

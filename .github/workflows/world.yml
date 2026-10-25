@@ -29,8 +29,9 @@ jobs:
           python -m pytest --import-mode=importlib "$GITHUB_WORKSPACE/tests" -q --junitxml="$GITHUB_WORKSPACE/test-results.xml"
       - name: Export and read back bounded fixture
         run: |
-          synthdata world --size 120 --seed 197 --scenario trade --output ci-world > ci-metrics.json
+          synthdata world --size 120 --seed 197 --scenario trade --social-platform mixed --activity bursty --max-turns 6 --output ci-world > ci-metrics.json
           synthdata validate ci-world
+          synthdata validate ci-world --observations
           synthdata import-fixture ci-world ci-world.sqlite
       - uses: actions/upload-artifact@v4
         with:

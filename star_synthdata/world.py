@@ -13,7 +13,7 @@ from starintel_canonical import DOCUMENT_TYPES, SPEC_VERSION, generated, load_sc
 from .kb import load_kb
 
 NS = 'org.starintel.synthdata'
-MODEL_VERSION = 1
+MODEL_VERSION = 2
 
 
 def canonical(value):
@@ -40,6 +40,9 @@ class Config:
     missingness: float = 0.0
     noise: float = 0.0
     dataset: str = 'synthetic-world'
+    social_platform: str = 'mixed'
+    activity: str = 'steady'
+    max_turns: int = 4
 
     def check(self, kb):
         if type(self.size) is not int or not 1 <= self.size <= 2000:
@@ -52,6 +55,10 @@ class Config:
             raise ValueError('unknown scenario or topology')
         if not re.fullmatch(r'synthetic-[a-z0-9-]{1,60}', self.dataset):
             raise ValueError('dataset must use the synthetic- namespace')
+        if self.social_platform not in ('off', 'mixed', *kb['social']['platforms']) or self.activity not in kb['social']['activity']:
+            raise ValueError('unknown social platform or activity pattern')
+        if type(self.max_turns) is not int or not 2 <= self.max_turns <= 8:
+            raise ValueError('max_turns must be an integer in 2..8')
         start, end = timestamp(self.start), timestamp(self.end)
         if start < timestamp('1970-01-01') or end > timestamp('2100-01-01') or not 86400 <= end - start <= 3660 * 86400:
             raise ValueError('window must be 1..3660 days within 1970..2100 (end exclusive)')
@@ -193,6 +200,9 @@ class Builder:
                 self.edge(people[a], people[b], 'collaborated_with', at+1800, evidence=event)
             author = indices[0]
             self.add('message', e, j, at+1800, message=f'[SYNTHETIC] {event["name"]}: {template["action"]}.', platform='fictional-board', user=ref(accounts[author]), sentAt=at+1800, mentions=[ref(accounts[i]) for i in indices[1:]], sources=[ref(file)])
+        from .social import populate
+        populate(self, people, by_community)
+        self.documents.sort(key=lambda d: (d['createdAt'], d['dtype'], d['id']))
         validate_graph(self.documents, kb)
         observations = observe(self.documents, c)
         validate_graph(observations, kb)
@@ -230,6 +240,8 @@ def references(doc):
     for field, dtype in [('participantIds', 'person'), ('organizerIds', 'org'), ('locationIds', 'location')]:
         for value in doc.get(field, []):
             yield {'id': value, 'schema': dtype}
+    from .social import social_references
+    yield from social_references(doc)
     if doc['dtype'] == 'person':
         yield {'id': doc['extensions'][NS]['householdId'], 'schema': 'org'}
 
@@ -299,6 +311,8 @@ def validate_graph(documents, kb=None):
             content = d['rawContent'].encode()
             if sha256(content).hexdigest() != d['bytesHash'] or len(content) != d['sizeBytes']:
                 raise ValueError('file payload/hash mismatch')
+    from .social import validate_social
+    validate_social(documents, ids, kb)
     if len(datasets) > 1 or len(worlds) > 1:
         raise ValueError('mixed simulation worlds')
     return summarize(documents)
@@ -328,7 +342,8 @@ def summarize(documents):
     for d in social:
         degrees.update([d['source']['id'], d['destination']['id']])
     local = sum(community(ids[d['source']['id']]) == community(ids[d['destination']['id']]) for d in social)
-    return {'documents': len(documents), 'types': dict(sorted(types.items())),
+    social_kinds = Counter(d.get('extensions', {}).get(NS, {}).get('socialKind') for d in documents)
+    return {'social': {k: v for k, v in sorted(social_kinds.items(), key=lambda x: str(x[0])) if k}, 'documents': len(documents), 'types': dict(sorted(types.items())),
             'relations': dict(sorted(Counter(d['predicate'] for d in relations).items())),
             'socialLocalFraction': round(local/len(social), 4) if social else 0,
             'socialMaxDegree': max(degrees.values(), default=0),

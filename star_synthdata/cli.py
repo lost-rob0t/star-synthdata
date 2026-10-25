@@ -16,9 +16,9 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description='Fictional StarIntel worlds; no external ingestion')
     commands = parser.add_subparsers(dest='command', required=True)
     world = commands.add_parser('world', help='generate an offline synthetic world')
-    for flag, default in [('size', 60), ('seed', 42), ('communities', 3)]:
+    for flag, default in [('size', 60), ('seed', 42), ('communities', 3), ('max-turns', 4)]:
         world.add_argument('--'+flag, type=int, default=default)
-    for flag, default in [('start', '2025-01-01'), ('end', '2025-12-31'), ('scenario', 'archipelago'), ('topology', 'preferential'), ('dataset', 'synthetic-world')]:
+    for flag, default in [('start', '2025-01-01'), ('end', '2025-12-31'), ('scenario', 'archipelago'), ('topology', 'preferential'), ('dataset', 'synthetic-world'), ('social-platform', 'mixed'), ('activity', 'steady')]:
         world.add_argument('--'+flag, default=default)
     for flag in ('noise', 'missingness'):
         world.add_argument('--'+flag, type=float, default=0)

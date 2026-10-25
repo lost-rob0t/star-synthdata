@@ -45,6 +45,9 @@ SQLite databases must be **new**; existing paths are refused. `--preview` (alias
 | `--missingness` | 0 | Probability of omitting a relation record from observations |
 | `--noise` | 0 | Uniform additive relation-weight noise, clipped to [0,1] |
 | `--dataset` | synthetic-world | Must match `synthetic-[a-z0-9-]{1,60}` |
+| `--social-platform` | mixed | `mixed`, `discord-like`, `telegram-like`, or `off` |
+| `--activity` | steady | `quiet`, `steady`, `bursty`, or a custom social activity profile |
+| `--max-turns` | 4 | 2–8 messages per conversation |
 | `--kb` | packaged KB | Alternate version-1 JSON knowledge base |
 
 Examples:
@@ -66,7 +69,7 @@ new_directory)` writes the bundle.
 [`star_synthdata/data/world.json`](star_synthdata/data/world.json) defines six
 invented settlements, household-size distributions, eight industry archetypes,
 24 role templates, services, topic vocabularies, four event archetypes, three
-scenarios, and eleven typed relation rules. Personal names are combinatorial,
+scenarios, and thirteen typed relation rules. Personal names are combinatorial,
 with an explicit synthetic ordinal to avoid mistaken identity and label clashes.
 No personal source data is fetched. Coordinates illustrate an invented ocean
 archipelago and must not be treated as real street addresses.
@@ -106,7 +109,7 @@ messages appear after the event. New collaborations begin only after a shared
 event and cite it as evidence. All reference targets exist before or at the
 referring record's timestamp. Birth dates precede adult employment. There are
 no simulated deaths, relocations, employment changes, dissolution, or edge decay
-in model v1. Longitudinal evolution consists of events and newly formed
+in model v2. Longitudinal evolution consists of events and newly formed
 collaborations; this is not a full demographic simulator.
 
 Weights are decimal strings in [0,1], representing simulated tie strength, not
@@ -127,6 +130,59 @@ samples **relation records only**. It is not entity-redaction or a missing-at-ra
 claim about real evidence. Noise changes only observed relation weights. Truth
 and observation JSONL files are separate snapshots with the same document IDs;
 do not concatenate or import both into one fixture store.
+
+## Fictional group chat and social posts
+
+World mode includes both Discord-like and Telegram-like social communities by
+default. These names describe simulated interaction patterns, not exact platform
+API formats. Each geographic community has one online group per selected
+platform, three channels (commons, projects, moderator-only announcements),
+fictional platform accounts, membership relations and a moderator. There are no
+platform tokens, real handles, API calls, scraped messages or real destinations.
+
+```sh
+synthdata world --size 30 --social-platform discord-like --activity bursty --max-turns 6 --output /tmp/fictional-chat
+synthdata world --size 30 --social-platform telegram-like --activity quiet --output /tmp/fictional-feed
+synthdata world --size 30 --social-platform off --output /tmp/no-social
+```
+
+Communities and channels are canonical `org` records with explicit
+`organizationType` values and supported extensions; accounts are `user` records.
+Group/channel membership is stored in typed relations **and** intrinsic user
+metadata, so sampled edge omission never makes conversation membership ambiguous.
+Roles are `member` and `moderator`; only moderators publish announcement roots,
+while members may reply. General/project channels permit either role.
+
+Each chat is an ordered multi-turn exchange: opening, proposal, question,
+agreement and optional follow-ups. Topic, session and template state stay
+consistent across alternating participants. Canonical `message` records carry
+`threadId`, `replyTo`, `mentions`, `sentAt`, author, group and channel. The validator
+checks membership at publication, role permissions, platform consistency,
+chronology, exact reply chains, partner mentions and content continuity.
+
+Announcements, comments and quote-style reposts use canonical `social-media-post`
+records. Comments refer to their root, reposts quote an earlier announcement, and
+engagement counts equal actual generated children. The root's `updatedAt` marks
+the final engagement snapshot. Group, channel, user and thread references are
+checked across both canonical fields and supported simulation extensions.
+
+Activity profiles configure sessions/posts per person, UTC active hours, weekend
+weights and optional burst-day concentration. A few members are more active;
+every member remains eligible. Bursty mode concentrates sessions on up to three
+days per community/platform. Each enabled group receives at least one example
+thread/post even at size=1. Single-member groups use self follow-ups without
+self mentions. Histories export in timestamp order. No deleted messages, bots,
+moderation actions or membership churn are modeled yet. Content is authored
+fictional template dialogue, not an LLM imitation of real people. The model is
+not calibrated to Discord/Telegram engagement statistics.
+
+Extend `social.conversations` with a topic, opening and 2–7 typed dialogue turns;
+add activity profiles under `social.activity` with bounded rates/hours. Channels
+need at least one member-writable and one moderator-only channel. Schema-supported
+extensions hold social model state; no unofficial channel/membership dtype is
+introduced. The small-world fixture includes both platforms, replies, mentions,
+comments and reposts. Setting social mode off omits the group-chat/feed layer;
+event-derived messages on the existing fictional board remain.
 
 ## Artifacts and validation
 
@@ -151,7 +207,8 @@ Production server ingestion remains outside this PR.
 Tests include corruption and invalid-input cases, no-network generation, same
 and different seeds, three topology comparisons across multiple seeds,
 observation sampling, small and 500-person scenarios, installed CLI/package data,
-canonical output from mocked Ollama responses, and SQLite readback. Hosted
+canonical output from mocked Ollama responses, social conversation/membership/role/content checks, activity-pattern comparisons,
+and SQLite readback. Hosted
 Actions uploads test results, wheel and generated evidence.
 
 ## Existing Ollama mode
