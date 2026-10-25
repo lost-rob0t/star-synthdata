@@ -125,3 +125,42 @@ def test_social_kb_extension(tmp_path):
     path.write_text(json.dumps(kb))
     with pytest.raises(ValueError):
         load_kb(path)
+
+@pytest.mark.parametrize('size', [1, 3])
+def test_member_only_channels_select_eligible_authors(size, tmp_path):
+    kb = load_kb()
+    for channel in kb['social']['channels']:
+        if 'member' in channel['write_roles']:
+            channel['write_roles'] = ['member']
+    path = tmp_path/'member-only.json'
+    path.write_text(json.dumps(kb))
+    kb = load_kb(path)
+    w = generate(Config(size=size, communities=1), kb)
+    assert w.documents == generate(Config(size=size, communities=1), kb).documents
+    ids = {d['id']: d for d in w.documents}
+    activities = [d for d in w.documents if metadata(d).get('socialKind') in ('chat', 'repost')]
+    if size == 1:
+        assert not activities
+        assert w.manifest['socialSkipped'] == {'chatSessions': 2, 'reposts': 2}
+        posts = [d for d in w.documents if metadata(d).get('socialKind') == 'post']
+        assert len(posts) == 2
+        assert all(p['repostCount'] == 0 and p['replyCount'] == 1 for p in posts)
+    else:
+        assert {metadata(d)['socialKind'] for d in activities} == {'chat', 'repost'}
+        assert w.manifest['socialSkipped'] == {'chatSessions': 0, 'reposts': 0}
+        for doc in activities:
+            author = ids[doc['user']['id'] if doc['dtype'] == 'message' else doc['userId']]
+            assert metadata(author)['role'] == 'member'
+    export(w, tmp_path/'bundle')
+    assert import_fixture(tmp_path/'bundle', tmp_path/'member-only.sqlite') == w.manifest['truth']
+
+
+def test_ineligible_first_channel_uses_later_permitted_channel():
+    kb = load_kb()
+    kb['social']['channels'][0]['write_roles'] = ['member']
+    w = generate(Config(size=1, communities=1), kb)
+    ids = {d['id']: d for d in w.documents}
+    activities = [d for d in w.documents if metadata(d).get('socialKind') in ('chat', 'repost')]
+    assert {metadata(d)['socialKind'] for d in activities} == {'chat', 'repost'}
+    assert all(ids[d['channel']]['name'] == 'projects' for d in activities)
+    assert w.manifest['socialSkipped'] == {'chatSessions': 0, 'reposts': 0}

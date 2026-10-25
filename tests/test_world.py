@@ -250,3 +250,49 @@ def test_export_checks_artifacts_before_write(world, tmp_path, change):
     with pytest.raises(ValueError, match='artifact'):
         export(altered, tmp_path/'invalid')
     assert not (tmp_path/'invalid').exists()
+
+@pytest.mark.parametrize('mutation', ['missing', 'empty', 'non_event', 'unshared_event', 'before_event_end'])
+def test_collaboration_requires_shared_event_evidence(world, mutation):
+    from datetime import datetime
+    from star_synthdata.world import ref, summarize
+    docs = deepcopy(world.documents)
+    ids = {d['id']: d for d in docs}
+    relation = next(d for d in docs if d.get('predicate') == 'collaborated_with')
+    event = ids[relation['evidence'][0]['id']]
+    original_summary = summarize(docs)
+    if mutation in ('missing', 'empty'):
+        if mutation == 'missing':
+            del relation['evidence']
+        else:
+            relation['evidence'] = []
+        relation['createdAt'] = relation['validFrom'] = min(d['createdAt'] for d in docs)
+    elif mutation == 'non_event':
+        relation['evidence'] = [ref(ids[relation['source']['id']])]
+    elif mutation == 'unshared_event':
+        # Keep the event otherwise valid while removing one collaborator.
+        event['participantIds'].remove(relation['source']['id'])
+    else:
+        ended = int(datetime.fromisoformat(event['endAt'].replace('Z', '+00:00')).timestamp())
+        relation['createdAt'] = relation['validFrom'] = ended - 1
+    assert summarize(docs) == original_summary
+    with pytest.raises(ValueError, match='collaboration'):
+        validate_graph(docs)
+
+
+def test_bundle_import_rejects_collaboration_without_evidence(world, tmp_path):
+    from hashlib import sha256
+    bundle = tmp_path/'bundle'
+    export(world, bundle)
+    docs = deepcopy(world.documents)
+    relation = next(d for d in docs if d.get('predicate') == 'collaborated_with')
+    del relation['evidence']
+    relation['createdAt'] = relation['validFrom'] = min(d['createdAt'] for d in docs)
+    payload = ''.join(canonical(d)+'\n' for d in docs)
+    (bundle/'truth.jsonl').write_text(payload)
+    manifest = json.loads((bundle/'manifest.json').read_text())
+    # A checksum/count match must never substitute for semantic validation.
+    manifest['files']['truth.jsonl'] = sha256(payload.encode()).hexdigest()
+    (bundle/'manifest.json').write_text(canonical(manifest)+'\n')
+    with pytest.raises(ValueError, match='collaboration'):
+        import_fixture(bundle, tmp_path/'rejected.sqlite')
+    assert not (tmp_path/'rejected.sqlite').exists()

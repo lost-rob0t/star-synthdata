@@ -13,7 +13,7 @@ from starintel_canonical import DOCUMENT_TYPES, SPEC_VERSION, generated, load_sc
 from .kb import load_kb
 
 NS = 'org.starintel.synthdata'
-MODEL_VERSION = 2
+MODEL_VERSION = 3
 
 
 def canonical(value):
@@ -201,7 +201,7 @@ class Builder:
             author = indices[0]
             self.add('message', e, j, at+1800, message=f'[SYNTHETIC] {event["name"]}: {template["action"]}.', platform='fictional-board', user=ref(accounts[author]), sentAt=at+1800, mentions=[ref(accounts[i]) for i in indices[1:]], sources=[ref(file)])
         from .social import populate
-        populate(self, people, by_community)
+        social_skipped = populate(self, people, by_community)
         self.documents.sort(key=lambda d: (d['createdAt'], d['dtype'], d['id']))
         validate_graph(self.documents, kb)
         observations = observe(self.documents, c)
@@ -211,7 +211,7 @@ class Builder:
                     'schemaSha256': sha256(canonical(load_schema()).encode()).hexdigest(),
                     'truth': summarize(self.documents), 'observations': summarize(observations),
                     'limits': 'Uncalibrated fictional model; graph mechanisms are assumptions, not empirical population estimates.',
-                    'externalIngestion': False}
+                    'externalIngestion': False, 'socialSkipped': social_skipped}
         return World(self.documents, observations, self.artifacts, manifest, kb)
 
 
@@ -302,11 +302,17 @@ def validate_graph(documents, kb=None):
             edges.add(key)
             if not 0 <= float(d['weight']) <= 1:
                 raise ValueError('weight out of range')
-            for evidence in d.get('evidence', []):
-                event = ids[evidence['id']]
-                ended = int(datetime.fromisoformat(event['endAt'].replace('Z', '+00:00')).timestamp())
-                if d['createdAt'] < ended or a['id'] not in event['participantIds'] or b['id'] not in event['participantIds']:
-                    raise ValueError('collaboration lacks preceding shared event')
+            if d['predicate'] == 'collaborated_with':
+                evidence_refs = d.get('evidence', [])
+                if not evidence_refs:
+                    raise ValueError('collaboration requires nonempty shared-event evidence')
+                for evidence in evidence_refs:
+                    event = ids[evidence['id']]
+                    if evidence['schema'] != 'event' or event['dtype'] != 'event':
+                        raise ValueError('collaboration evidence must reference an event')
+                    ended = int(datetime.fromisoformat(event['endAt'].replace('Z', '+00:00')).timestamp())
+                    if d['createdAt'] < ended or a['id'] not in event['participantIds'] or b['id'] not in event['participantIds']:
+                        raise ValueError('collaboration lacks preceding shared event')
         if d['dtype'] == 'file':
             content = d['rawContent'].encode()
             if sha256(content).hexdigest() != d['bytesHash'] or len(content) != d['sizeBytes']:

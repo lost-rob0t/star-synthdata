@@ -109,7 +109,7 @@ messages appear after the event. New collaborations begin only after a shared
 event and cite it as evidence. All reference targets exist before or at the
 referring record's timestamp. Birth dates precede adult employment. There are
 no simulated deaths, relocations, employment changes, dissolution, or edge decay
-in model v2. Longitudinal evolution consists of events and newly formed
+in model v3. Longitudinal evolution consists of events and newly formed
 collaborations; this is not a full demographic simulator.
 
 Weights are decimal strings in [0,1], representing simulated tie strength, not
@@ -168,9 +168,16 @@ checked across both canonical fields and supported simulation extensions.
 
 Activity profiles configure sessions/posts per person, UTC active hours, weekend
 weights and optional burst-day concentration. A few members are more active;
-every member remains eligible. Bursty mode concentrates sessions on up to three
-days per community/platform. Each enabled group receives at least one example
-thread/post even at size=1. Single-member groups use self follow-ups without
+every permitted member remains eligible. Bursty mode concentrates sessions on up to three
+days per community/platform. Each enabled group schedules at least one example
+thread/post even at size=1. Chat and repost authors are selected only from
+accounts whose role permits writing in the chosen member-facing channel.
+Custom member-only channels are supported: a group containing only a moderator
+has no eligible chat/repost authors, so those activities are skipped and counted
+in manifest `socialSkipped.chatSessions` / `socialSkipped.reposts`. Moderator
+announcements and their member-visible comments still generate; repost counts
+remain zero and engagement timestamps follow the actual comments. If another
+member-facing channel permits an available author, it is used instead. Single-member groups use self follow-ups without
 self mentions. Histories export in timestamp order. No deleted messages, bots,
 moderation actions or membership churn are modeled yet. Content is authored
 fictional template dialogue, not an LLM imitation of real people. The model is

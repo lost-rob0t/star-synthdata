@@ -10,10 +10,24 @@ def metadata(doc):
     return doc['extensions'][NS]
 
 
+def eligible_chat_channels(channels, accounts):
+    """Only choose channel/author pairs that satisfy membership and write roles."""
+    result = []
+    for channel in channels:
+        if 'member' not in metadata(channel)['writeRoles']:
+            continue
+        eligible = [a for a in accounts if channel['id'] in metadata(a)['channelIds']
+                    and metadata(a)['role'] in metadata(channel)['writeRoles']]
+        if eligible:
+            result.append((channel, eligible))
+    return result
+
+
 def populate(builder, people, by_community):
     c, kb = builder.config, builder.kb['social']
+    skipped = {'chatSessions': 0, 'reposts': 0}
     if c.social_platform == 'off':
-        return
+        return skipped
     rng = random.Random(f'{c.seed}:social-v2')
     platforms = kb['platforms'] if c.social_platform == 'mixed' else [c.social_platform]
     profile = kb['activity'][c.activity]
@@ -60,14 +74,18 @@ def populate(builder, people, by_community):
 
     for at, key, n in sorted(sessions):
         group, channels, accounts = groups[key]
-        channel = rng.choice([d for d in channels if 'member' in metadata(d)['writeRoles']])
+        eligible_channels = eligible_chat_channels(channels, accounts)
+        if not eligible_channels:
+            skipped['chatSessions'] += 1
+            continue
+        channel, eligible_accounts = rng.choice(eligible_channels)
         template_index = rng.randrange(len(kb['conversations']))
         template = kb['conversations'][template_index]
         turns = rng.randint(2, min(c.max_turns, len(template['turns'])+1))
         # Degree-like activity heterogeneity: early members are more active, but
-        # all members remain eligible. Participants alternate where possible.
-        participants = [rng.choices(accounts, weights=[1/(i+1) for i in range(len(accounts))])[0]]
-        others = [a for a in accounts if a is not participants[0]]
+        # all permitted members remain eligible. Participants alternate where possible.
+        participants = [rng.choices(eligible_accounts, weights=[1/(i+1) for i in range(len(eligible_accounts))])[0]]
+        others = [a for a in eligible_accounts if a is not participants[0]]
         if others:
             participants.append(rng.choice(others))
         root, previous = None, None
@@ -112,9 +130,14 @@ def populate(builder, people, by_community):
                                   parentPostId=root['id'], replyTo=root['id'], threadId=root['id'], isReply=True)
             metadata(comment).update(socialKind='comment', groupId=group['id'], channelId=channel['id'], topic=topic)
             root['replyCount'] += 1
+        root['updatedAt'] = at
+        eligible_channels = eligible_chat_channels(channels, accounts)
+        if not eligible_channels:
+            skipped['reposts'] += 1
+            continue
         at += rng.randint(60, 240)
-        author = rng.choice(accounts)
-        channel = next(d for d in channels if 'member' in metadata(d)['writeRoles'])
+        channel, eligible_accounts = eligible_channels[0]
+        author = rng.choice(eligible_accounts)
         repost = builder.add('social-media-post', f'repost-{key}-{n}', community(group), at,
                              content=f'[SYNTHETIC] Sharing the {topic} community update for discussion.',
                              platform=author['platform'], userId=author['id'], authorRefs=[author['id']],
@@ -123,6 +146,7 @@ def populate(builder, people, by_community):
         metadata(repost).update(socialKind='repost', groupId=group['id'], channelId=channel['id'], topic=topic)
         root['repostCount'] = 1
         root['updatedAt'] = at  # Final engagement snapshot, no references to future records.
+    return skipped
 
 
 def social_references(doc):
