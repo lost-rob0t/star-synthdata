@@ -60,6 +60,7 @@
         export PYTHONPATH=${self.packages.${system}.default}/lib
         export SYNTHDATA_CLI=${self.packages.${system}.default}/bin/synthdata
         export PYTHONDONTWRITEBYTECODE=1
+        export SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt
         python -m pytest -q -p no:cacheprovider ${self}/tests
         $SYNTHDATA_CLI world --size 12 --output smoke
         $SYNTHDATA_CLI validate smoke

@@ -53,8 +53,8 @@ class Config:
         if not re.fullmatch(r'synthetic-[a-z0-9-]{1,60}', self.dataset):
             raise ValueError('dataset must use the synthetic- namespace')
         start, end = timestamp(self.start), timestamp(self.end)
-        if start < timestamp('1900-01-01') or end > timestamp('2100-01-01') or not 86400 <= end - start <= 3660 * 86400:
-            raise ValueError('window must be 1..3660 days within 1900..2100 (end exclusive)')
+        if start < timestamp('1970-01-01') or end > timestamp('2100-01-01') or not 86400 <= end - start <= 3660 * 86400:
+            raise ValueError('window must be 1..3660 days within 1970..2100 (end exclusive)')
         for value in (self.missingness, self.noise):
             if type(value) not in (int, float) or not math.isfinite(value) or not 0 <= value <= 1:
                 raise ValueError('sampling rates must be finite numbers in [0,1]')
@@ -253,8 +253,8 @@ def validate_graph(documents, kb=None):
             target = ids.get(r['id'])
             if target is None or target['dtype'] != r['schema']:
                 raise ValueError('dangling or mistyped reference')
-            if target['createdAt'] > d['createdAt']:
-                raise ValueError('reference to future document')
+            if not target['createdAt'] <= d['createdAt'] < target['validUntil']:
+                raise ValueError('reference outside target lifetime')
         if d['dtype'] == 'person':
             birthday = date.fromisoformat(d['dob'])
             now = datetime.fromtimestamp(d['createdAt'], timezone.utc).date()
@@ -262,6 +262,9 @@ def validate_graph(documents, kb=None):
             if age < 18:
                 raise ValueError('worker must be an adult')
             org = ids[d['employer'][0]['id']]
+            household = ids[d['extensions'][NS]['householdId']]
+            if household['organizationType'] != 'household' or any(community(ids[r['id']]) != community(d) for r in references(d)):
+                raise ValueError('person has incompatible household or community')
             sector = next(s for s in kb['sectors'] if s['name'] == org['extensions'][NS]['sector'])
             if d['occupation'][0] not in sector['roles']:
                 raise ValueError('role not permitted in employer sector')

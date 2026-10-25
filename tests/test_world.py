@@ -219,3 +219,21 @@ def test_invalid_kb(tmp_path, change):
     path.write_text(json.dumps(kb))
     with pytest.raises(ValueError):
         load_kb(path)
+
+def test_negative_unix_window_rejected():
+    with pytest.raises(ValueError, match='window'):
+        generate(Config(start='1969-01-01', end='1970-01-01'))
+
+def test_export_revalidates_mutable_api(world, tmp_path):
+    mutated = deepcopy(world)
+    mutated.documents[0]['unexpected'] = True
+    with pytest.raises(ValueError):
+        export(mutated, tmp_path/'invalid')
+    assert not (tmp_path/'invalid').exists()
+
+def test_expired_reference_rejected(world):
+    docs = deepcopy(world.documents)
+    person = next(d for d in docs if d['dtype'] == 'person')
+    person['validUntil'] = person['createdAt'] + 1
+    with pytest.raises(ValueError, match='lifetime'):
+        validate_graph(docs)

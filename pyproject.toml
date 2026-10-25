@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "starintel-synthdata"
 version = "0.2.0"
 description = "Offline fictional worlds and canonical StarIntel fixtures"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
   "starintel_doc @ git+https://github.com/lost-rob0t/starintel-doc.git@6aa8051dc7ea560943a60a25e1d600467f2778bc",
   "httpx>=0.27,<1",

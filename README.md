@@ -9,6 +9,8 @@ document validator, including its semantic checks.
 
 ## Install and run
 
+Requires Python 3.11+ because the canonical generated SDK imports `typing.NotRequired`.
+
 ```sh
 python -m venv .venv
 . .venv/bin/activate
@@ -22,7 +24,7 @@ pytest -q
 
 `nix develop`, `nix build`, and `nix flake check` are also supported. The installed
 Nix executable is `./result/bin/synthdata`. `python main.py world ...` remains a
-source-tree entry point. GitHub Actions runs Python 3.10/3.12 installed-wheel
+source-tree entry point. GitHub Actions runs Python 3.11/3.12 installed-wheel
 tests and the full Nix package check on the PR's exact head commit.
 
 No server, model, credentials, or network is needed for world generation after
@@ -37,7 +39,7 @@ SQLite databases must be **new**; existing paths are refused. `--preview` (alias
 | `--size` | 60 | Persons, 1–2000; total records are larger |
 | `--seed` | 42 | Signed 64-bit seed |
 | `--communities` | 3 | 1–min(persons, KB places); use 1 for a single person |
-| `--start`, `--end` | 2025-01-01, 2025-12-31 | UTC dates; end exclusive; 1–3660 days within 1900–2100 |
+| `--start`, `--end` | 2025-01-01, 2025-12-31 | UTC dates; end exclusive; 1–3660 days within 1970–2100 |
 | `--scenario` | archipelago | `archipelago`, `trade`, `campus`, or a custom KB scenario |
 | `--topology` | preferential | `preferential`, `local`, `uniform` |
 | `--missingness` | 0 | Probability of omitting a relation record from observations |

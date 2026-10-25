@@ -10,6 +10,8 @@ from .world import canonical, references, validate_graph
 
 def export(world, destination):
     """Create a new directory; never merge into an existing dataset."""
+    if validate_graph(world.documents, world.kb) != world.manifest['truth'] or validate_graph(world.observations, world.kb) != world.manifest['observations']:
+        raise ValueError('world changed after manifest creation')
     destination = Path(destination)
     destination.mkdir(parents=True, exist_ok=False)
     payloads = {
